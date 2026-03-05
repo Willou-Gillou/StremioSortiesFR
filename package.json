@@ -1,16 +1,16 @@
 {
-  "dependencies": {
-    "express": "^5.2.1"
-  },
-  "name": "cataloguefr2",
+  "name": "StremioSortiesFR",
   "version": "1.0.0",
-  "main": "index.js",
-  "devDependencies": {},
+  "description": "🎬 Sorties films FR récents pour Stremio",
+  "main": "server-pastebin-meta.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server-pastebin-meta.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": ""
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tonpseudo/StremioSortiesFR"
+  }
 }
