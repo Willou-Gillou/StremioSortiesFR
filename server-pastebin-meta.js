@@ -15,9 +15,9 @@ const server = require('http').createServer(async (req, res) => {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
       "version": "1.0.1",
-      "name": "🎬 StremioSortiesFR",
+      "name": "🎬 SortiesFR",
       "description": "Sorties films FR récents (DVD/Blu-ray)",
-      "logo": "https://via.placeholder.com/256x256/1E3A8A/FFFFFF?text=SF",
+      "logo": "https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png",
       "resources": ["catalog"],
       "types": ["movie"],
       "idPrefixes": ["tt"],
