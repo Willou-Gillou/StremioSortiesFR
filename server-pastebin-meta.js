@@ -1,22 +1,199 @@
 const https = require('https'); // Pour fetch Pastebin (OUTGOING)
 
-const META_PASTEBIN_ID = 'fxpaHMMj';  // Ton meta ID
+// ✅ VARIABLES GLOBALES
+const ADDON_VERSION = 'v1.0.2';  
+const META_PASTEBIN_ID = 'fxpaHMMj';  
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
+const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
+
+const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films FR récents (DVD/Bluray). 
+Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio pour présenter le résumé du film et la bande annonce si disponibles. 
+Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
+Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
 console.log('🔍 Meta URL:', META_URL);
+console.log('🌐 Base URL:', BASE_URL);
+console.log('📦 Version:', ADDON_VERSION);
 
 const server = require('http').createServer(async (req, res) => {
-  // ✅ FIX UTF-8 + CORS
+  // ✅ CORS complet
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET');
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  if (req.url === '/manifest.json') {
+  // ✅ Page de configuration (/) ET (/configure) pour Stremio
+  if (req.url === '/' || req.url === '/configure') {
+    const manifestUrl = `${BASE_URL}/manifest.json`;
+    const pageHTML = `
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🎬 SortiesFR - Configuration</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+      text-align: center;
+      max-width: 500px;
+      width: 100%;
+    }
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: #ff6b6b;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      color: white;
+      margin-bottom: 30px;
+    }
+    h1 { color: #333; margin-bottom: 30px; font-size: 1.8em; }
+    .info {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      text-align: left;
+    }
+    .info h3 { color: #555; margin-bottom: 10px; }
+    .info p { 
+      word-break: break-all; 
+      background: white; 
+      padding: 12px; 
+      border-radius: 8px; 
+      border: 2px solid #e9ecef;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    .description {
+      background: #e8f5e8;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      font-size: 0.85em;
+      line-height: 1.5;
+      text-align: justify;
+    }
+    .version { color: #28a745; font-weight: bold; }
+    .buttons {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    button {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1em;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      flex: 1;
+      min-width: 160px;
+    }
+    .copy-btn {
+      background: #007bff;
+      color: white;
+    }
+    .copy-btn:hover { background: #0056b3; transform: translateY(-2px); }
+    .install-btn {
+      background: linear-gradient(45deg, #28a745, #20c997);
+      color: white;
+    }
+    .install-btn:hover { 
+      background: linear-gradient(45deg, #218838, #1ea88a); 
+      transform: translateY(-2px); 
+    }
+    .copied { 
+      background: #28a745 !important; 
+      animation: pulse 0.6s; 
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+    @media (max-width: 480px) {
+      .container { padding: 30px 20px; }
+      .buttons { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🎬</div>
+    <h1>SortiesFR Addon</h1>
+    
+    <div class="info">
+      <h3>📋 Informations</h3>
+      <p><strong>Version :</strong> <span class="version">${ADDON_VERSION}</span></p>
+      <p><strong>URL Manifest :</strong><br>
+         <span id="manifestUrl">${manifestUrl}</span>
+      </p>
+      <div class="description">${ADDON_DESCRIPTION.replace(/\\n/g, '<br>')}</div>
+    </div>
+    
+    <div class="buttons">
+      <button class="copy-btn" onclick="copyUrl()">
+        📋 Copier URL
+      </button>
+      <button class="install-btn" onclick="installAddon()">
+        🚀 Installer Addon
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const manifestUrl = '${manifestUrl}';
+    
+    function copyUrl() {
+      navigator.clipboard.writeText(manifestUrl).then(() => {
+        const btn = document.querySelector('.copy-btn');
+        btn.textContent = '✅ Copié !';
+        btn.classList.add('copied');
+        setTimeout(() => {
+          btn.textContent = '📋 Copier URL';
+          btn.classList.remove('copied');
+        }, 2000);
+      });
+    }
+    
+    function installAddon() {
+      window.open(manifestUrl, '_blank');
+    }
+  </script>
+</body>
+</html>`;
+    
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.end(pageHTML);
+  }
+  
+  // ✅ Manifest avec NOUVELLE description + version dynamique
+  else if (req.url === '/manifest.json') {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
-      "version": "1.0.1",
+      "version": ADDON_VERSION,
       "name": "🎬 SortiesFR",
-      "description": "Sorties films FR récents (DVD/Blu-ray)",
+      "description": ADDON_DESCRIPTION,
       "logo": "https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png",
       "resources": ["catalog"],
       "types": ["movie"],
@@ -25,11 +202,17 @@ const server = require('http').createServer(async (req, res) => {
         "type": "movie",
         "id": "filmsfr-recents",
         "name": "🎬 Films FR Récents"
-      }]
+      }],
+      "behaviorHints": {
+        "configurable": true,
+        "configurationRequired": false
+      }
     };
-    // ✅ FIX UTF-8: Buffer.from
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(Buffer.from(JSON.stringify(manifest), 'utf-8'));
   }
+  
+  // ✅ Catalogue films
   else if (req.url === '/catalog/movie/filmsfr-recents.json') {
     try {
       console.log('📡 Meta Pastebin...');
@@ -54,7 +237,7 @@ const server = require('http').createServer(async (req, res) => {
         genre: f.genre
       }));
       
-      // ✅ FIX UTF-8
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
       res.end(Buffer.from(JSON.stringify({ metas }), 'utf-8'));
       
     } catch (error) {
@@ -69,7 +252,8 @@ const server = require('http').createServer(async (req, res) => {
       };
       res.end(Buffer.from(JSON.stringify(errorMeta), 'utf-8'));
     }
-  } else {
+  } 
+  else {
     res.statusCode = 404;
     res.end('{}');
   }
@@ -94,6 +278,7 @@ async function fetchPastebin(url) {
 // ✅ Render Cloud: PORT dynamique
 const port = process.env.PORT || 3000;
 server.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 StremioSortiesFR sur port ${port}`);
-  console.log(`📱 https://stremiosortiesfr.onrender.com/manifest.json`);
+  console.log(`🚀 StremioSortiesFR v${ADDON_VERSION} sur port ${port}`);
+  console.log(`📱 Page config: https://stremiosortiesfr.onrender.com/`);
+  console.log(`📱 Manifest: https://stremiosortiesfr.onrender.com/manifest.json`);
 });
