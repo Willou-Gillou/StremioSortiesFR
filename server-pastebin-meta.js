@@ -1,7 +1,7 @@
 const https = require('https'); // Pour fetch Pastebin (OUTGOING)
 
 // ✅ VARIABLES GLOBALES
-const ADDON_VERSION = '1.0.2';  // ✅ SANS 'v' - version numérique pour Stremio
+const ADDON_VERSION = '1.0.3';  // ✅ v1.0.3 + format string SEMVER valide
 const META_PASTEBIN_ID = 'fxpaHMMj';  
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
@@ -192,11 +192,11 @@ const server = require('http').createServer(async (req, res) => {
     res.end();
   }
   
-  // ✅ Manifest avec version NUMÉRIQUE (SANS 'v')
+  // ✅ Manifest avec version STRING SEMVER valide
   else if (req.url === '/manifest.json') {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
-      "version": parseFloat(ADDON_VERSION),  // ✅ Convertit en nombre
+      "version": ADDON_VERSION,  // ✅ STRING "1.0.3" - format SEMVER requis
       "name": "🎬 SortiesFR",
       "description": ADDON_DESCRIPTION,
       "logo": ADDON_LOGO,
