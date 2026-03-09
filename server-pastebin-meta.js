@@ -1,10 +1,11 @@
 const https = require('https'); // Pour fetch Pastebin (OUTGOING)
 
 // ✅ VARIABLES GLOBALES
-const ADDON_VERSION = 'v1.0.2';  
+const ADDON_VERSION = 'v1.0.3';  
 const META_PASTEBIN_ID = 'fxpaHMMj';  
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
+const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
 
 const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films FR récents (DVD/Bluray). 
 Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio pour présenter le résumé du film et la bande annonce si disponibles. 
@@ -21,9 +22,10 @@ const server = require('http').createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  // ✅ Page de configuration (/) ET (/configure) pour Stremio
-  if (req.url === '/' || req.url === '/configure') {
+  // ✅ UNIQUEMENT /configure pour Stremio
+  if (req.url === '/configure') {
     const manifestUrl = `${BASE_URL}/manifest.json`;
+    const stremioUrl = manifestUrl.replace('https://', 'stremio://');
     const pageHTML = `
 <!DOCTYPE html>
 <html lang="fr">
@@ -55,14 +57,10 @@ const server = require('http').createServer(async (req, res) => {
       width: 80px;
       height: 80px;
       margin: 0 auto 20px;
-      background: #ff6b6b;
       border-radius: 20px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 2em;
-      color: white;
-      margin-bottom: 30px;
+      object-fit: cover;
+      border: 4px solid white;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
     }
     h1 { color: #333; margin-bottom: 30px; font-size: 1.8em; }
     .info {
@@ -139,7 +137,7 @@ const server = require('http').createServer(async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <div class="logo">🎬</div>
+    <img src="${ADDON_LOGO}" alt="SortiesFR Logo" class="logo">
     <h1>SortiesFR Addon</h1>
     
     <div class="info">
@@ -156,13 +154,14 @@ const server = require('http').createServer(async (req, res) => {
         📋 Copier URL
       </button>
       <button class="install-btn" onclick="installAddon()">
-        🚀 Installer Addon
+        🚀 Installer dans Stremio
       </button>
     </div>
   </div>
 
   <script>
     const manifestUrl = '${manifestUrl}';
+    const stremioUrl = '${stremioUrl}';
     
     function copyUrl() {
       navigator.clipboard.writeText(manifestUrl).then(() => {
@@ -177,7 +176,7 @@ const server = require('http').createServer(async (req, res) => {
     }
     
     function installAddon() {
-      window.open(manifestUrl, '_blank');
+      window.location.href = stremioUrl;
     }
   </script>
 </body>
@@ -187,14 +186,20 @@ const server = require('http').createServer(async (req, res) => {
     res.end(pageHTML);
   }
   
-  // ✅ Manifest avec NOUVELLE description + version dynamique
+  // Route racine : redirige vers /configure
+  else if (req.url === '/') {
+    res.writeHead(302, { Location: `${BASE_URL}/configure` });
+    res.end();
+  }
+  
+  // ✅ Manifest avec logo + description
   else if (req.url === '/manifest.json') {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
       "version": ADDON_VERSION,
       "name": "🎬 SortiesFR",
       "description": ADDON_DESCRIPTION,
-      "logo": "https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png",
+      "logo": ADDON_LOGO,
       "resources": ["catalog"],
       "types": ["movie"],
       "idPrefixes": ["tt"],
@@ -279,6 +284,7 @@ async function fetchPastebin(url) {
 const port = process.env.PORT || 3000;
 server.listen(port, '0.0.0.0', () => {
   console.log(`🚀 StremioSortiesFR v${ADDON_VERSION} sur port ${port}`);
-  console.log(`📱 Page config: https://stremiosortiesfr.onrender.com/`);
+  console.log(`📱 Page config: https://stremiosortiesfr.onrender.com/configure`);
   console.log(`📱 Manifest: https://stremiosortiesfr.onrender.com/manifest.json`);
+  console.log(`📱 Stremio URL: stremio://stremiosortiesfr.onrender.com/manifest.json`);
 });
