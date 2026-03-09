@@ -1,8 +1,8 @@
-const https = require('https'); // Pour fetch Pastebin (OUTGOING)
+const https = require('https');
 
 // ✅ VARIABLES GLOBALES
-const ADDON_VERSION = '1.0.3';  // ✅ v1.0.3 + format string SEMVER valide
-const META_PASTEBIN_ID = 'fxpaHMMj';  
+const ADDON_VERSION = 'v1.0.4';
+const META_PASTEBIN_ID = 'fxpaHMMj';
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
 const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
@@ -12,11 +12,72 @@ Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio p
 Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
 Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
+// ✅ Système de logs CONSOLE SEULEMENT
+const uniqueUsers = new Set();
+let requestCount = 0;
+
+async function getGeo(ip) {
+  try {
+    const response = await new Promise((resolve, reject) => {
+      https.get(`https://ipapi.co/${ip}/json/`, { timeout: 3000 }, resolve).on('error', reject);
+    });
+    let data = '';
+    response.on('data', chunk => data += chunk);
+    const geo = JSON.parse(data);
+    return {
+      city: geo.city || 'Inconnu',
+      region: geo.region || 'Inconnu', 
+      country: geo.country || 'Inconnu',
+      org: geo.org || 'Inconnu',
+      vpn: geo.vpn || false,
+      hosting: geo.hosting || false
+    };
+  } catch {
+    return { city: 'Inconnu', region: 'Inconnu', country: '??', org: 'Inconnu', vpn: false, hosting: false };
+  }
+}
+
+function logRequest(req, res, geo) {
+  const timestamp = new Date().toISOString();
+  const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+                   req.headers['x-real-ip'] || 
+                   req.socket.remoteAddress;
+  
+  // ✅ IP EN CLAIR
+  const fullIP = clientIP;
+  
+  const userAgent = req.headers['user-agent'] || 'Unknown';
+  const method = req.method;
+  const endpoint = req.url;
+  const status = res.statusCode || 200;
+  
+  const location = `${geo.city}, ${geo.region}, ${geo.country}`;
+  const provider = geo.org;
+  const vpnInfo = geo.vpn ? '🔒VPN' : geo.hosting ? '🏢Hosting' : '🏠Résidentiel';
+  
+  // ✅ CONSOLE UNIQUEMENT - PAS DE FICHIER
+  const logLine = `[${timestamp}] ${method} ${endpoint} | ${status} | IP:${fullIP} | ${location} | ${provider} | ${vpnInfo} | UA:${userAgent.substring(0,50)}`;
+  console.log(logLine);
+  
+  // ✅ Compteur users uniques (IP complète)
+  uniqueUsers.add(fullIP);
+  requestCount++;
+  console.log(`📊 Total requests: ${requestCount} | Users uniques: ${uniqueUsers.size}`);
+}
+
 console.log('🔍 Meta URL:', META_URL);
 console.log('🌐 Base URL:', BASE_URL);
 console.log('📦 Version:', ADDON_VERSION);
+console.log('📊 Logs CONSOLE uniquement');
 
 const server = require('http').createServer(async (req, res) => {
+  const startTime = Date.now();
+  
+  // ✅ LOG AVANT traitement
+  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
+  const geo = await getGeo(ip);
+  logRequest(req, res, geo);
+  
   // ✅ CORS complet
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
@@ -146,7 +207,7 @@ const server = require('http').createServer(async (req, res) => {
       <p><strong>URL Manifest :</strong><br>
          <span id="manifestUrl">${manifestUrl}</span>
       </p>
-      <div class="description">${ADDON_DESCRIPTION.replace(/\\n/g, '<br>')}</div>
+      <div class="description">${ADDON_DESCRIPTION.replace(/\\\\n/g, '<br>')}</div>
     </div>
     
     <div class="buttons">
@@ -192,11 +253,11 @@ const server = require('http').createServer(async (req, res) => {
     res.end();
   }
   
-  // ✅ Manifest avec version STRING SEMVER valide
+  // Manifest
   else if (req.url === '/manifest.json') {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
-      "version": ADDON_VERSION,  // ✅ STRING "1.0.3" - format SEMVER requis
+      "version": "1.0.4",
       "name": "🎬 SortiesFR",
       "description": ADDON_DESCRIPTION,
       "logo": ADDON_LOGO,
@@ -217,7 +278,7 @@ const server = require('http').createServer(async (req, res) => {
     res.end(Buffer.from(JSON.stringify(manifest), 'utf-8'));
   }
   
-  // ✅ Catalogue films
+  // Catalogue films
   else if (req.url === '/catalog/movie/filmsfr-recents.json') {
     try {
       console.log('📡 Meta Pastebin...');
@@ -232,14 +293,10 @@ const server = require('http').createServer(async (req, res) => {
       console.log(`✅ ${films.length} films`);
       
       const metas = films.map(f => ({
-        id: f.id, 
-        type: 'movie', 
-        name: f.name,
+        id: f.id, type: 'movie', name: f.name,
         poster: f.poster || `https://via.placeholder.com/500x750/1E3A8A/F8FAFF?text=${f.name.substring(0,12)}`,
-        description: f.description, 
-        releaseInfo: f.year,
-        imdbRating: f.rating, 
-        genre: f.genre
+        description: f.description, releaseInfo: f.year,
+        imdbRating: f.rating, genre: f.genre
       }));
       
       res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -249,9 +306,7 @@ const server = require('http').createServer(async (req, res) => {
       console.error('💥', error.message);
       const errorMeta = {
         metas: [{
-          id: 'error', 
-          type: 'movie', 
-          name: `ERREUR: ${error.message}`,
+          id: 'error', type: 'movie', name: `ERREUR: ${error.message}`,
           poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR'
         }]
       };
@@ -262,9 +317,13 @@ const server = require('http').createServer(async (req, res) => {
     res.statusCode = 404;
     res.end('{}');
   }
+  
+  // ✅ Log status final
+  const duration = Date.now() - startTime;
+  console.log(`⏱️ ${req.url} | ${duration}ms`);
 });
 
-// 🔧 Fonction Pastebin sécurisée
+// Fonction Pastebin
 async function fetchPastebin(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
@@ -280,11 +339,9 @@ async function fetchPastebin(url) {
   });
 }
 
-// ✅ Render Cloud: PORT dynamique
 const port = process.env.PORT || 3000;
 server.listen(port, '0.0.0.0', () => {
   console.log(`🚀 StremioSortiesFR v${ADDON_VERSION} sur port ${port}`);
   console.log(`📱 Page config: https://stremiosortiesfr.onrender.com/configure`);
-  console.log(`📱 Manifest: https://stremiosortiesfr.onrender.com/manifest.json`);
-  console.log(`📱 Stremio URL: stremio://stremiosortiesfr.onrender.com/manifest.json`);
+  console.log(`📊 Logs CONSOLE uniquement`);
 });
