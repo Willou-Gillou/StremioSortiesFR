@@ -1,18 +1,20 @@
 const https = require('https');
 
-// ✅ VARIABLES GLOBALES
-const ADDON_VERSION = 'v1.0.4';
-const META_PASTEBIN_ID = 'fxpaHMMj';
+// ✅ VARIABLES GLOBALES v1.0.5
+const ADDON_VERSION = 'v1.0.5';
+const META_PASTEBIN_ID = 'fxpaHMMj';  // Meta films
+const SERIES_META_ID = '063xCRqW';    // ← NOUVEAU séries
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
+const SERIES_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
 const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
 const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
 
-const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films FR récents (DVD/Bluray). 
+const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films ET séries FR récentes (DVD/Bluray). 
 Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio pour présenter le résumé du film et la bande annonce si disponibles. 
 Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
 Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
-// ✅ Système de logs CONSOLE SEULEMENT
+// ✅ Système de logs CONSOLE SEULEMENT (inchangé)
 const uniqueUsers = new Set();
 let requestCount = 0;
 
@@ -43,9 +45,7 @@ function logRequest(req, res, geo) {
                    req.headers['x-real-ip'] || 
                    req.socket.remoteAddress;
   
-  // ✅ IP EN CLAIR
   const fullIP = clientIP;
-  
   const userAgent = req.headers['user-agent'] || 'Unknown';
   const method = req.method;
   const endpoint = req.url;
@@ -55,30 +55,27 @@ function logRequest(req, res, geo) {
   const provider = geo.org;
   const vpnInfo = geo.vpn ? '🔒VPN' : geo.hosting ? '🏢Hosting' : '🏠Résidentiel';
   
-  // ✅ CONSOLE UNIQUEMENT - PAS DE FICHIER
   const logLine = `[${timestamp}] ${method} ${endpoint} | ${status} | IP:${fullIP} | ${location} | ${provider} | ${vpnInfo} | UA:${userAgent.substring(0,50)}`;
   console.log(logLine);
   
-  // ✅ Compteur users uniques (IP complète)
   uniqueUsers.add(fullIP);
   requestCount++;
   console.log(`📊 Total requests: ${requestCount} | Users uniques: ${uniqueUsers.size}`);
 }
 
 console.log('🔍 Meta URL:', META_URL);
+console.log('📺 Séries URL:', SERIES_URL);
 console.log('🌐 Base URL:', BASE_URL);
-console.log('📦 Version:', ADDON_VERSION);
+console.log('📦 Version v1.0.5:', ADDON_VERSION);
 console.log('📊 Logs CONSOLE uniquement');
 
 const server = require('http').createServer(async (req, res) => {
   const startTime = Date.now();
   
-  // ✅ LOG AVANT traitement
   const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
   const geo = await getGeo(ip);
   logRequest(req, res, geo);
   
-  // ✅ CORS complet
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -93,7 +90,7 @@ const server = require('http').createServer(async (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎬 SortiesFR - Configuration</title>
+  <title>🎬📺 SortiesFR v1.0.5 - Configuration</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -141,6 +138,16 @@ const server = require('http').createServer(async (req, res) => {
       font-family: monospace;
       font-size: 0.9em;
     }
+    .catalogs {
+      background: #e3f2fd;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      text-align: left;
+    }
+    .catalogs h4 { color: #1976d2; margin-bottom: 10px; }
+    .catalogs ul { list-style: none; padding-left: 0; }
+    .catalogs li { padding: 5px 0; font-size: 0.9em; }
     .description {
       background: #e8f5e8;
       padding: 15px;
@@ -168,10 +175,7 @@ const server = require('http').createServer(async (req, res) => {
       flex: 1;
       min-width: 160px;
     }
-    .copy-btn {
-      background: #007bff;
-      color: white;
-    }
+    .copy-btn { background: #007bff; color: white; }
     .copy-btn:hover { background: #0056b3; transform: translateY(-2px); }
     .install-btn {
       background: linear-gradient(45deg, #28a745, #20c997);
@@ -181,10 +185,7 @@ const server = require('http').createServer(async (req, res) => {
       background: linear-gradient(45deg, #218838, #1ea88a); 
       transform: translateY(-2px); 
     }
-    .copied { 
-      background: #28a745 !important; 
-      animation: pulse 0.6s; 
-    }
+    .copied { background: #28a745 !important; animation: pulse 0.6s; }
     @keyframes pulse {
       0% { transform: scale(1); }
       50% { transform: scale(1.05); }
@@ -199,7 +200,7 @@ const server = require('http').createServer(async (req, res) => {
 <body>
   <div class="container">
     <img src="${ADDON_LOGO}" alt="SortiesFR Logo" class="logo">
-    <h1>SortiesFR Addon</h1>
+    <h1>🎬📺 SortiesFR v1.0.5</h1>
     
     <div class="info">
       <h3>📋 Informations</h3>
@@ -207,6 +208,15 @@ const server = require('http').createServer(async (req, res) => {
       <p><strong>URL Manifest :</strong><br>
          <span id="manifestUrl">${manifestUrl}</span>
       </p>
+      
+      <div class="catalogs">
+        <h4>📂 Catalogue disponibles :</h4>
+        <ul>
+          <li>🎬 Films FR Récents (DVD/Blu-ray)</li>
+          <li>📺 Séries FR Récentes (DVD/Blu-ray)</li>
+        </ul>
+      </div>
+      
       <div class="description">${ADDON_DESCRIPTION.replace(/\\\\n/g, '<br>')}</div>
     </div>
     
@@ -253,22 +263,29 @@ const server = require('http').createServer(async (req, res) => {
     res.end();
   }
   
-  // Manifest
+  // ✅ Manifest v1.0.5 : FILMS + SÉRIES
   else if (req.url === '/manifest.json') {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
-      "version": "1.0.4",
-      "name": "🎬 SortiesFR",
+      "version": "1.0.5",  // ← CHANGÉ
+      "name": "🎬📺 SortiesFR v1.0.5",
       "description": ADDON_DESCRIPTION,
       "logo": ADDON_LOGO,
       "resources": ["catalog"],
-      "types": ["movie"],
+      "types": ["movie", "series"],  // ← SÉRIES AJOUTÉ
       "idPrefixes": ["tt"],
-      "catalogs": [{
-        "type": "movie",
-        "id": "filmsfr-recents",
-        "name": "🎬 Films FR Récents"
-      }],
+      "catalogs": [                    // ← 2 CATALOGUES
+        {
+          "type": "movie",
+          "id": "filmsfr-recents",
+          "name": "🎬 Films FR Récents"
+        },
+        {
+          "type": "series",            // ← NOUVEAU
+          "id": "seriesfr-recentes",
+          "name": "📺 Séries FR Récentes"
+        }
+      ],
       "behaviorHints": {
         "configurable": true,
         "configurationRequired": false
@@ -278,10 +295,10 @@ const server = require('http').createServer(async (req, res) => {
     res.end(Buffer.from(JSON.stringify(manifest), 'utf-8'));
   }
   
-  // Catalogue films
+  // ✅ Catalogue FILMS (inchangé)
   else if (req.url === '/catalog/movie/filmsfr-recents.json') {
     try {
-      console.log('📡 Meta Pastebin...');
+      console.log('📡 Meta Pastebin films...');
       const metaData = await fetchPastebin(META_URL);
       const filmsId = metaData.trim();
       console.log('✅ Films ID:', filmsId);
@@ -313,17 +330,48 @@ const server = require('http').createServer(async (req, res) => {
       res.end(Buffer.from(JSON.stringify(errorMeta), 'utf-8'));
     }
   } 
+  
+  // ✅ NOUVEAU : Catalogue SÉRIES
+  else if (req.url === '/catalog/series/seriesfr-recentes.json') {
+    try {
+      console.log('📺 Meta Pastebin séries...');
+      const seriesData = await fetchPastebin(SERIES_URL);
+      
+      const series = JSON.parse(seriesData);
+      console.log(`✅ ${series.length} séries`);
+      
+      const metas = series.map(s => ({
+        id: s.id, type: 'series', name: s.name,      // ← type: 'series'
+        poster: s.poster || `https://via.placeholder.com/500x750/4F46E5/FFFFFF?text=${s.name.substring(0,12)}`,
+        description: s.description, releaseInfo: s.year,
+        imdbRating: s.rating, genre: s.genre
+      }));
+      
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(Buffer.from(JSON.stringify({ metas }), 'utf-8'));
+      
+    } catch (error) {
+      console.error('💥 Séries:', error.message);
+      const errorMeta = {
+        metas: [{
+          id: 'error', type: 'series', name: `ERREUR SÉRIES: ${error.message}`,
+          poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR'
+        }]
+      };
+      res.end(Buffer.from(JSON.stringify(errorMeta), 'utf-8'));
+    }
+  }
+  
   else {
     res.statusCode = 404;
     res.end('{}');
   }
   
-  // ✅ Log status final
   const duration = Date.now() - startTime;
   console.log(`⏱️ ${req.url} | ${duration}ms`);
 });
 
-// Fonction Pastebin
+// Fonction Pastebin (inchangée)
 async function fetchPastebin(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
@@ -342,6 +390,6 @@ async function fetchPastebin(url) {
 const port = process.env.PORT || 3000;
 server.listen(port, '0.0.0.0', () => {
   console.log(`🚀 StremioSortiesFR v${ADDON_VERSION} sur port ${port}`);
-  console.log(`📱 Page config: https://stremiosortiesfr.onrender.com/configure`);
+  console.log(`📱 Page config: ${BASE_URL}/configure`);
   console.log(`📊 Logs CONSOLE uniquement`);
 });
