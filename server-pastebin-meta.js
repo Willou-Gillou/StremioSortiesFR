@@ -14,8 +14,8 @@ Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio p
 Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
 Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
-// ✅ LOGS ULTRA-SIMPLIFIÉS
-let connectionCount = 0;
+// ✅ LOGS AVEC COMPTEUR PAR IP + TOP 5
+const ipStats = new Map();
 
 function simpleLog(req) {
   const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
@@ -23,18 +23,27 @@ function simpleLog(req) {
                    req.socket.remoteAddress;
   
   const countryCode = clientIP.split('.')[0];
-  connectionCount++;
   
-  console.log(`@ ${clientIP} ${countryCode}xx | #${connectionCount}`);
+  // Compteur spécifique à cette IP
+  const ipCount = (ipStats.get(clientIP) || 0) + 1;
+  ipStats.set(clientIP, ipCount);
+  
+  console.log(`@ ${clientIP} ${countryCode}xx | #${ipCount} connexions`);
+  
+  // TOP 5 IPs
+  const top5 = Array.from(ipStats.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([ip, count]) => `${ip.slice(0, 8)}... #${count}`);
+    
+  console.log(`TOP 5: ${top5.join(' | ')}`);
 }
 
-console.log('🚀 SortiesFR v1.0.5 | Logs ultra-simplifiés');
+console.log('🚀 SortiesFR v1.0.5 | Logs IP + TOP 5');
 console.log('📱 Config:', `${BASE_URL}/configure`);
 
 const server = require('http').createServer(async (req, res) => {
-  const startTime = Date.now();
-  
-  // ✅ LOG ULTRA-SIMPLE
+  // ✅ LOG IP + TOP 5
   simpleLog(req);
   
   res.setHeader('Access-Control-Allow-Origin', '*');
