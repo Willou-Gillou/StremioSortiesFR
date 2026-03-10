@@ -14,37 +14,27 @@ Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio p
 Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
 Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
-// ✅ LOGS SIMPLIFIÉS
+// ✅ LOGS ULTRA-SIMPLIFIÉS
 let connectionCount = 0;
-let recentConnections = [];
 
 function simpleLog(req) {
-  const timestamp = new Date().toISOString().slice(11, 19); // HH:MM:SS
   const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
                    req.headers['x-real-ip'] || 
                    req.socket.remoteAddress;
   
-  const userAgent = req.headers['user-agent'] || 'Unknown';
-  const stremioVersion = userAgent.match(/Stremio\/([\d.]+)/)?.[1] || 'Unknown';
-  
-  // Localisation basique (juste pays via IP première octet)
   const countryCode = clientIP.split('.')[0];
-  
   connectionCount++;
-  recentConnections.push(`${timestamp} @${clientIP}`);
-  if (recentConnections.length > 2) recentConnections.shift();
   
-  console.log(`[${timestamp}] #${connectionCount} @${clientIP} ${countryCode}xx | Stremio:${stremioVersion} | ${req.method} ${req.url}`);
-  console.log(`   Dernières: ${recentConnections.slice(-2).join(', ')}`);
+  console.log(`@ ${clientIP} ${countryCode}xx | #${connectionCount}`);
 }
 
-console.log('🚀 SortiesFR v1.0.5 | Logs simplifiés');
+console.log('🚀 SortiesFR v1.0.5 | Logs ultra-simplifiés');
 console.log('📱 Config:', `${BASE_URL}/configure`);
 
 const server = require('http').createServer(async (req, res) => {
   const startTime = Date.now();
   
-  // ✅ LOG SIMPLE
+  // ✅ LOG ULTRA-SIMPLE
   simpleLog(req);
   
   res.setHeader('Access-Control-Allow-Origin', '*');
