@@ -2,8 +2,8 @@ const https = require('https');
 
 // ✅ VARIABLES GLOBALES v1.0.5
 const ADDON_VERSION = 'v1.0.5';
-const META_PASTEBIN_ID = 'fxpaHMMj';      // Meta général (films)
-const SERIES_META_ID = 'Jv93Qfyj';       // Meta général (series)
+const META_PASTEBIN_ID = 'fxpaHMMj';        // Meta général (films)
+const SERIES_META_ID = 'Jv93Qfyj';         // Meta général (series)
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const SERIES_META_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
 const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
@@ -14,86 +14,106 @@ Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio p
 Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
 Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
-// Système de logs (inchangé)
-const uniqueUsers = new Set();
-let requestCount = 0;
+// ✅ LOGS SIMPLIFIÉS
+let connectionCount = 0;
+let recentConnections = [];
 
-async function getGeo(ip) {
-  try {
-    const response = await new Promise((resolve, reject) => {
-      https.get(`https://ipapi.co/${ip}/json/`, { timeout: 3000 }, resolve).on('error', reject);
-    });
-    let data = '';
-    response.on('data', chunk => data += chunk);
-    const geo = JSON.parse(data);
-    return {
-      city: geo.city || 'Inconnu',
-      region: geo.region || 'Inconnu', 
-      country: geo.country || 'Inconnu',
-      org: geo.org || 'Inconnu',
-      vpn: geo.vpn || false,
-      hosting: geo.hosting || false
-    };
-  } catch {
-    return { city: 'Inconnu', region: 'Inconnu', country: '??', org: 'Inconnu', vpn: false, hosting: false };
-  }
-}
-
-function logRequest(req, res, geo) {
-  const timestamp = new Date().toISOString();
+function simpleLog(req) {
+  const timestamp = new Date().toISOString().slice(11, 19); // HH:MM:SS
   const clientIP = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
                    req.headers['x-real-ip'] || 
                    req.socket.remoteAddress;
   
-  const fullIP = clientIP;
   const userAgent = req.headers['user-agent'] || 'Unknown';
-  const method = req.method;
-  const endpoint = req.url;
-  const status = res.statusCode || 200;
+  const stremioVersion = userAgent.match(/Stremio\/([\d.]+)/)?.[1] || 'Unknown';
   
-  const location = `${geo.city}, ${geo.region}, ${geo.country}`;
-  const provider = geo.org;
-  const vpnInfo = geo.vpn ? '🔒VPN' : geo.hosting ? '🏢Hosting' : '🏠Résidentiel';
+  // Localisation basique (juste pays via IP première octet)
+  const countryCode = clientIP.split('.')[0];
   
-  const logLine = `[${timestamp}] ${method} ${endpoint} | ${status} | IP:${fullIP} | ${location} | ${provider} | ${vpnInfo} | UA:${userAgent.substring(0,50)}`;
-  console.log(logLine);
+  connectionCount++;
+  recentConnections.push(`${timestamp} @${clientIP}`);
+  if (recentConnections.length > 2) recentConnections.shift();
   
-  uniqueUsers.add(fullIP);
-  requestCount++;
-  console.log(`📊 Total requests: ${requestCount} | Users uniques: ${uniqueUsers.size}`);
+  console.log(`[${timestamp}] #${connectionCount} @${clientIP} ${countryCode}xx | Stremio:${stremioVersion} | ${req.method} ${req.url}`);
+  console.log(`   Dernières: ${recentConnections.slice(-2).join(', ')}`);
 }
 
-console.log('🔍 Meta films:', META_URL);
-console.log('📺 Meta séries:', SERIES_META_URL);
-console.log('🌐 Base URL:', BASE_URL);
-console.log('📦 Version v1.0.5:', ADDON_VERSION);
+console.log('🚀 SortiesFR v1.0.5 | Logs simplifiés');
+console.log('📱 Config:', `${BASE_URL}/configure`);
 
 const server = require('http').createServer(async (req, res) => {
   const startTime = Date.now();
   
-  const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress;
-  const geo = await getGeo(ip);
-  logRequest(req, res, geo);
+  // ✅ LOG SIMPLE
+  simpleLog(req);
   
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
+  // /configure
   if (req.url === '/configure') {
     const manifestUrl = `${BASE_URL}/manifest.json`;
     const stremioUrl = manifestUrl.replace('https://', 'stremio://');
-    const pageHTML = `
-<!DOCTYPE html>
+    const pageHTML = `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎬📺 SortiesFR v1.0.5 - Configuration</title>
-  <!-- Style identique à avant -->
-  <style>/* [CSS identique à v1.0.5 précédent] */</style>
+  <title>🎬📺 SortiesFR v1.0.5</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+    .container{background:white;padding:40px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);text-align:center;max-width:500px;width:100%;}
+    .logo{width:80px;height:80px;margin:0 auto 20px;border-radius:20px;object-fit:cover;border:4px solid white;box-shadow:0 8px 20px rgba(0,0,0,.2);}
+    h1{color:#333;margin-bottom:30px;font-size:1.8em;}
+    .info{background:#f8f9fa;padding:20px;border-radius:12px;margin-bottom:30px;text-align:left;}
+    .info h3{color:#555;margin-bottom:10px;}
+    .info p{word-break:break-all;background:white;padding:12px;border-radius:8px;border:2px solid #e9ecef;font-family:monospace;font-size:.9em;}
+    .catalogs{background:#e3f2fd;padding:15px;border-radius:8px;margin:15px 0;text-align:left;}
+    .catalogs h4{color:#1976d2;margin-bottom:10px;}
+    .catalogs ul{list-style:none;padding-left:0;}
+    .catalogs li{padding:5px 0;font-size:.9em;}
+    .description{background:#e8f5e8;padding:15px;border-radius:8px;margin-top:15px;font-size:.85em;line-height:1.5;text-align:justify;}
+    .version{color:#28a745;font-weight:bold;}
+    .buttons{display:flex;gap:15px;flex-wrap:wrap;justify-content:center;}
+    button{padding:15px 30px;border:none;border-radius:12px;font-size:1.1em;font-weight:600;cursor:pointer;transition:all .3s;flex:1;min-width:160px;}
+    .copy-btn{background:#007bff;color:white;}
+    .copy-btn:hover{background:#0056b3;transform:translateY(-2px);}
+    .install-btn{background:linear-gradient(45deg,#28a745,#20c997);color:white;}
+    .install-btn:hover{background:linear-gradient(45deg,#218838,#1ea88a);transform:translateY(-2px);}
+    .copied{background:#28a745!important;animation:pulse .6s;}
+    @keyframes pulse{0%{transform:scale(1);}50%{transform:scale(1.05);}100%{transform:scale(1);}}
+    @media(max-width:480px){.container{padding:30px 20px;}.buttons{flex-direction:column;}}
+  </style>
 </head>
 <body>
-  <!-- HTML identique avec les 2 catalogues -->
+  <div class="container">
+    <img src="${ADDON_LOGO}" alt="Logo" class="logo">
+    <h1>🎬📺 SortiesFR v1.0.5</h1>
+    <div class="info">
+      <h3>📋 Informations</h3>
+      <p><strong>Version:</strong> <span class="version">${ADDON_VERSION}</span></p>
+      <p><strong>URL Manifest:</strong><br><span id="manifestUrl">${manifestUrl}</span></p>
+      <div class="catalogs">
+        <h4>📂 Catalogues:</h4>
+        <ul>
+          <li>🎬 Films FR Récents</li>
+          <li>📺 Séries FR Récentes</li>
+        </ul>
+      </div>
+      <div class="description">${ADDON_DESCRIPTION.replace(/\\\\n/g,'<br>')}</div>
+    </div>
+    <div class="buttons">
+      <button class="copy-btn" onclick="copyUrl()">📋 Copier URL</button>
+      <button class="install-btn" onclick="installAddon()">🚀 Installer</button>
+    </div>
+  </div>
+  <script>
+    const manifestUrl='${manifestUrl}';const stremioUrl='${stremioUrl}';
+    function copyUrl(){navigator.clipboard.writeText(manifestUrl).then(()=>{const btn=document.querySelector('.copy-btn');btn.textContent='✅ Copié!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 Copier URL';btn.classList.remove('copied')},2e3)})}
+    function installAddon(){window.location.href=stremioUrl}
+  </script>
 </body>
 </html>`;
     
@@ -106,7 +126,6 @@ const server = require('http').createServer(async (req, res) => {
     res.end();
   }
   
-  // Manifest (identique v1.0.5)
   else if (req.url === '/manifest.json') {
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
@@ -118,39 +137,22 @@ const server = require('http').createServer(async (req, res) => {
       "types": ["movie", "series"],
       "idPrefixes": ["tt"],
       "catalogs": [
-        {
-          "type": "movie",
-          "id": "filmsfr-recents",
-          "name": "🎬 Films FR Récents"
-        },
-        {
-          "type": "series",
-          "id": "seriesfr-recentes",
-          "name": "📺 Séries FR Récentes"
-        }
+        {"type": "movie", "id": "filmsfr-recents", "name": "🎬 Films FR Récents"},
+        {"type": "series", "id": "seriesfr-recentes", "name": "📺 Séries FR Récentes"}
       ],
-      "behaviorHints": {
-        "configurable": true,
-        "configurationRequired": false
-      }
+      "behaviorHints": {"configurable": true, "configurationRequired": false}
     };
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.end(Buffer.from(JSON.stringify(manifest), 'utf-8'));
   }
   
-  // ✅ CATALOGUE FILMS (avec META routing)
   else if (req.url === '/catalog/movie/filmsfr-recents.json') {
     try {
-      console.log('📡 Meta Pastebin films...');
+      console.log('📡 Fetch films...');
       const metaData = await fetchPastebin(META_URL);
       const filmsId = metaData.trim();
-      console.log('✅ Films ID:', filmsId);
-      
-      const filmsUrl = `https://pastebin.com/raw/${filmsId}`;
-      const filmsData = await fetchPastebin(filmsUrl);
-      
+      const filmsData = await fetchPastebin(`https://pastebin.com/raw/${filmsId}`);
       const films = JSON.parse(filmsData);
-      console.log(`✅ ${films.length} films`);
       
       const metas = films.map(f => ({
         id: f.id, type: 'movie', name: f.name,
@@ -169,19 +171,13 @@ const server = require('http').createServer(async (req, res) => {
     }
   } 
   
-  // ✅ CATALOGUE SÉRIES (avec META routing Jv93Qfyj → 063xCRqW)
   else if (req.url === '/catalog/series/seriesfr-recentes.json') {
     try {
-      console.log('📺 Meta Pastebin séries...');
-      const seriesMetaData = await fetchPastebin(SERIES_META_URL);  // Jv93Qfyj
+      console.log('📺 Fetch séries...');
+      const seriesMetaData = await fetchPastebin(SERIES_META_URL);
       const seriesId = seriesMetaData.trim();
-      console.log('✅ Séries ID:', seriesId);  // Devrait logger "063xCRqW"
-      
-      const seriesUrl = `https://pastebin.com/raw/${seriesId}`;
-      const seriesData = await fetchPastebin(seriesUrl);
-      
+      const seriesData = await fetchPastebin(`https://pastebin.com/raw/${seriesId}`);
       const series = JSON.parse(seriesData);
-      console.log(`✅ ${series.length} séries`);
       
       const metas = series.map(s => ({
         id: s.id, type: 'series', name: s.name,
@@ -195,7 +191,7 @@ const server = require('http').createServer(async (req, res) => {
       
     } catch (error) {
       console.error('💥 Séries:', error.message);
-      const errorMeta = { metas: [{ id: 'error', type: 'series', name: `ERREUR SÉRIES: ${error.message}`, poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR' }] };
+      const errorMeta = { metas: [{ id: 'error', type: 'series', name: `ERREUR: ${error.message}`, poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR' }] };
       res.end(Buffer.from(JSON.stringify(errorMeta), 'utf-8'));
     }
   }
@@ -204,12 +200,8 @@ const server = require('http').createServer(async (req, res) => {
     res.statusCode = 404;
     res.end('{}');
   }
-  
-  const duration = Date.now() - startTime;
-  console.log(`⏱️ ${req.url} | ${duration}ms`);
 });
 
-// Fonction Pastebin (inchangée)
 async function fetchPastebin(url) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
@@ -227,6 +219,5 @@ async function fetchPastebin(url) {
 
 const port = process.env.PORT || 3000;
 server.listen(port, '0.0.0.0', () => {
-  console.log(`🚀 StremioSortiesFR v${ADDON_VERSION} sur port ${port}`);
-  console.log(`📱 Page config: ${BASE_URL}/configure`);
+  console.log(`🚀 v${ADDON_VERSION} sur port ${port}`);
 });
