@@ -1,8 +1,9 @@
 {
-  "name": "StremioSortiesFR",
-  "version": "1.0.0",
-  "description": "🎬 Sorties films FR récents pour Stremio",
+  "name": "SortiesFR",
+  "version": "2.0.0",
+  "description": "Serveur catalogue FR",
   "main": "server-pastebin-meta.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node server-pastebin-meta.js"
   },
