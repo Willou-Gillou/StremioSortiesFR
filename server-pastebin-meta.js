@@ -6,7 +6,7 @@ const META_PASTEBIN_ID = 'fxpaHMMj';        // Meta général (films)
 const SERIES_META_ID = 'Jv93Qfyj';         // Meta général (series)
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const SERIES_META_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
-const BASE_URL = process.env.BASE_URL || `https://stremiosortiesfr.onrender.com`;
+const BASEURL = process.env.KOYEB_SERVICE_URL || 'https://yammering-fiann-willorg-17a44322.koyeb.app';
 const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
 
 const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films ET séries FR récentes (DVD/Bluray). 
