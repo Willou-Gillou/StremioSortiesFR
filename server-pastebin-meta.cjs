@@ -1,35 +1,11 @@
-const https = require('https');
+// ✅ STREMIO ADDON NATIF DENO v1.0.5 - Compatible Deno Deploy
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-// ✅ FONCTION HORODATAGE
-function getTimestamp() {
-  const now = new Date();
-  const time = now.toLocaleTimeString('fr-FR', { 
-    hour12: false, 
-    hour: '2-digit', 
-    minute: '2-digit', 
-    second: '2-digit' 
-  });
-  const date = now.toLocaleDateString('fr-FR', { 
-    day: '2-digit', 
-    month: '2-digit', 
-    year: 'numeric' 
-  });
-  return `[${date} ${time}]`;
-}
-
-// ✅ VARIABLES GLOBALES v1.0.5
 const ADDON_VERSION = 'v1.0.5';
-const META_PASTEBIN_ID = 'fxpaHMMj';        // Meta général (films)
-const SERIES_META_ID = 'Jv93Qfyj';         // Meta général (series)
+const META_PASTEBIN_ID = 'fxpaHMMj';
+const SERIES_META_ID = 'Jv93Qfyj';
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const SERIES_META_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
-
-// ✅ URL DYNAMIQUE - détecte automatiquement l'URL réelle du serveur
-const BASEURL = process.env.KOYEB_SERVICE_URL || 
-                process.env.BASE_URL || 
-                process.env.RENDER_EXTERNAL_URL || 
-                'https://yammering-fiann-willorg-17a44322.koyeb.app'; // fallback
-
 const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
 
 const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films ET séries FR récentes (DVD/Bluray). 
@@ -37,26 +13,76 @@ Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio p
 Enfin, cet addon est hébergé sur un serveur qui se met en veille en cas d'inutilisation prolongée. 
 Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 
-console.log(`${getTimestamp()} 🚀 SortiesFR ${ADDON_VERSION} | BASEURL: ${BASEURL} | DÉMARRAGE`);
+function getTimestamp(): string {
+  const now = new Date();
+  const time = now.toLocaleTimeString('fr-FR', { 
+    hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' 
+  });
+  const date = now.toLocaleDateString('fr-FR', { 
+    day: '2-digit', month: '2-digit', year: 'numeric' 
+  });
+  return `[${date} ${time}]`;
+}
 
-const server = require('http').createServer(async (req, res) => {
-  // ✅ HORODATAGE + Construction de l'URL complète avec le hostname réel
-  const host = req.headers.host || 'localhost:3000';
-  const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+async function fetchPastebin(url: string): Promise<string> {
+  const res = await fetch(url, { 
+    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; StremioAddon/1.0)' } 
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${url}`);
+  const text = await res.text();
+  if (text.includes('<!DOCTYPE') || text.includes('<html>')) {
+    throw new Error(`HTML error: ${url}`);
+  }
+  return text;
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  const urlObj = new URL(req.url);
+  const host = req.headers.get('host') || 'localhost:8000';
+  const protocol = req.headers.get('x-forwarded-proto') === 'https' ? 'https' : 'http';
   const fullBaseUrl = `${protocol}://${host}`;
-  
-  console.log(`${getTimestamp()} 📡 ${req.method} ${req.url} from ${host}`);
 
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  console.log(`${getTimestamp()} 📡 ${req.method} ${urlObj.pathname} from ${host}`);
 
-  // /configure
-  if (req.url === '/configure') {
-    const manifestUrl = `${fullBaseUrl}/manifest.json`;
-    const stremioUrl = manifestUrl.replace('https://', 'stremio://').replace('http://', 'stremio://');
-    
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // ✅ /manifest.json - CRITIQUE pour Stremio
+  if (urlObj.pathname === '/manifest.json') {
+    console.log(`${getTimestamp()} 📋 Manifest.json servi`);
+    const manifest = {
+      id: "com.stremiosortiesfr.catalog",
+      version: "1.0.5",
+      name: "🎬📺 SortiesFR v1.0.5",
+      description: ADDON_DESCRIPTION,
+      logo: ADDON_LOGO,
+      resources: ["catalog"],
+      types: ["movie", "series"],
+      idPrefixes: ["tt"],
+      catalogs: [
+        { type: "movie", id: "filmsfr-recents", name: "🎬 Films FR Récents" },
+        { type: "series", id: "seriesfr-recentes", name: "📺 Séries FR Récentes" }
+      ],
+      behaviorHints: { configurable: true, configurationRequired: false }
+    };
+    return new Response(JSON.stringify(manifest, null, 2), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+      status: 200
+    });
+  }
+
+  // ✅ /configure
+  if (urlObj.pathname === '/configure') {
     console.log(`${getTimestamp()} 🎨 Page configure chargée`);
+    const manifestUrl = `${fullBaseUrl}/manifest.json`;
+    const stremioUrl = manifestUrl.replace(/^https?:\/\//, 'stremio://');
     
     const pageHTML = `<!DOCTYPE html>
 <html lang="fr">
@@ -105,7 +131,7 @@ const server = require('http').createServer(async (req, res) => {
           <li>📺 Séries FR Récentes</li>
         </ul>
       </div>
-      <div class="description">${ADDON_DESCRIPTION.replace(/\\\\n/g,'<br>')}</div>
+      <div class="description">${ADDON_DESCRIPTION.replace(/\\n/g,'<br>')}</div>
     </div>
     <div class="buttons">
       <button class="copy-btn" onclick="copyUrl()">📋 Copier URL</button>
@@ -130,110 +156,95 @@ const server = require('http').createServer(async (req, res) => {
 </body>
 </html>`;
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.end(pageHTML);
+    return new Response(pageHTML, {
+      headers: { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' }
+    });
   }
 
-  else if (req.url === '/') {
+  // Redirection racine
+  if (urlObj.pathname === '/') {
     console.log(`${getTimestamp()} 🔄 Redirection / → /configure`);
-    res.writeHead(302, { Location: `/configure` });
-    res.end();
+    return Response.redirect(`${fullBaseUrl}/configure`, 302);
   }
 
-  else if (req.url === '/manifest.json') {
-    console.log(`${getTimestamp()} 📋 Manifest.json servi`);
-    const manifest = {
-      "id": "com.stremiosortiesfr.catalog",
-      "version": "1.0.5",
-      "name": "🎬📺 SortiesFR v1.0.5",
-      "description": ADDON_DESCRIPTION,
-      "logo": ADDON_LOGO,
-      "resources": ["catalog"],
-      "types": ["movie", "series"],
-      "idPrefixes": ["tt"],
-      "catalogs": [
-        {"type": "movie", "id": "filmsfr-recents", "name": "🎬 Films FR Récents"},
-        {"type": "series", "id": "seriesfr-recentes", "name": "📺 Séries FR Récentes"}
-      ],
-      "behaviorHints": {"configurable": true, "configurationRequired": false}
-    };
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.end(Buffer.from(JSON.stringify(manifest), 'utf-8'));
-  }
-
-  else if (req.url === '/catalog/movie/filmsfr-recents.json') {
+  // Films
+  if (urlObj.pathname === '/catalog/movie/filmsfr-recents.json') {
     try {
       console.log(`${getTimestamp()} 📡 Fetch films...`);
       const metaData = await fetchPastebin(META_URL);
       const filmsId = metaData.trim();
       const filmsData = await fetchPastebin(`https://pastebin.com/raw/${filmsId}`);
-      const films = JSON.parse(filmsData);
+      const films: any[] = JSON.parse(filmsData);
 
-      const metas = films.map(f => ({
-        id: f.id, type: 'movie', name: f.name,
+      const metas = films.map((f: any) => ({
+        id: f.id,
+        type: 'movie' as const,
+        name: f.name,
         poster: f.poster || `https://via.placeholder.com/500x750/1E3A8A/F8FAFF?text=${f.name.substring(0,12)}`,
-        description: f.description, releaseInfo: f.year,
-        imdbRating: f.rating, genre: f.genre
+        description: f.description,
+        releaseInfo: f.year,
+        imdbRating: f.rating,
+        genre: f.genre
       }));
 
       console.log(`${getTimestamp()} ✅ ${metas.length} films envoyés`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(Buffer.from(JSON.stringify({ metas }), 'utf-8'));
-    } catch (error) {
+      return new Response(JSON.stringify({ metas }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+      });
+    } catch (error: any) {
       console.error(`${getTimestamp()} 💥 Films ERROR:`, error.message);
-      const errorMeta = { metas: [{ id: 'error', type: 'movie', name: `ERREUR: ${error.message}`, poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR' }] };
-      res.end(Buffer.from(JSON.stringify(errorMeta), 'utf-8'));
+      return new Response(JSON.stringify({
+        metas: [{ id: 'error', type: 'movie', name: `ERREUR: ${error.message}`, 
+                poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR' }]
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+      });
     }
   }
 
-  else if (req.url === '/catalog/series/seriesfr-recentes.json') {
+  // Séries
+  if (urlObj.pathname === '/catalog/series/seriesfr-recentes.json') {
     try {
       console.log(`${getTimestamp()} 📺 Fetch séries...`);
       const seriesMetaData = await fetchPastebin(SERIES_META_URL);
       const seriesId = seriesMetaData.trim();
       const seriesData = await fetchPastebin(`https://pastebin.com/raw/${seriesId}`);
-      const series = JSON.parse(seriesData);
+      const series: any[] = JSON.parse(seriesData);
 
-      const metas = series.map(s => ({
-        id: s.id, type: 'series', name: s.name,
+      const metas = series.map((s: any) => ({
+        id: s.id,
+        type: 'series' as const,
+        name: s.name,
         poster: s.poster || `https://via.placeholder.com/500x750/4F46E5/FFFFFF?text=${s.name.substring(0,12)}`,
-        description: s.description, releaseInfo: s.year,
-        imdbRating: s.rating, genre: s.genre
+        description: s.description,
+        releaseInfo: s.year,
+        imdbRating: s.rating,
+        genre: s.genre
       }));
 
       console.log(`${getTimestamp()} ✅ ${metas.length} séries envoyées`);
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(Buffer.from(JSON.stringify({ metas }), 'utf-8'));
-    } catch (error) {
+      return new Response(JSON.stringify({ metas }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+      });
+    } catch (error: any) {
       console.error(`${getTimestamp()} 💥 Séries ERROR:`, error.message);
-      const errorMeta = { metas: [{ id: 'error', type: 'series', name: `ERREUR: ${error.message}`, poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR' }] };
-      res.end(Buffer.from(JSON.stringify(errorMeta), 'utf-8'));
+      return new Response(JSON.stringify({
+        metas: [{ id: 'error', type: 'series', name: `ERREUR: ${error.message}`, 
+                poster: 'https://via.placeholder.com/500x750/FF6B6B/FFFFFF?text=ERROR' }]
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
+      });
     }
   }
 
-  else {
-    console.log(`${getTimestamp()} ❌ 404: ${req.url}`);
-    res.statusCode = 404;
-    res.end('{}');
-  }
-});
-
-async function fetchPastebin(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (resp) => {
-      let data = '';
-      resp.on('data', chunk => data += chunk);
-      resp.on('end', () => {
-        if (data.includes('<!DOCTYPE') || data.includes('<html')) {
-          reject(new Error(`HTML error: ${url}`));
-        }
-        resolve(data);
-      });
-    }).on('error', reject);
+  // 404
+  console.log(`${getTimestamp()} ❌ 404: ${urlObj.pathname}`);
+  return new Response('{}', { 
+    status: 404, 
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
   });
-}
+};
 
-const port = process.env.PORT || 3000;
-server.listen(port, '0.0.0.0', () => {
-  console.log(`${getTimestamp()} 🚀 v${ADDON_VERSION} sur port ${port} | PRÊT`);
-});
+// 🚀 Serveur Deno
+console.log(`${getTimestamp()} 🚀 SortiesFR Deno ${ADDON_VERSION} | DÉMARRAGE`);
+serve(handler, { port: 8000 });
