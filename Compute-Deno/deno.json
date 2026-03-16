@@ -1,20 +1,5 @@
 {
-  "name": "sortiesfr-stremio-addon",
-  "version": "1.0.7",
-  "description": "🎬 SortiesFR Stremio Catalog (Deno Deploy)",
-  "unstable": ["kv", "temporal"],
-  "tasks": {
-    "start": "deno run --allow-net --allow-env main.ts",
-    "dev": "deno run --allow-net --allow-env --watch main.ts",
-    "deploy": "deno deploy --project=sortiesfr main.ts"
-  },
-  "imports": {
-    "std/": "https://deno.land/std@0.224.0/",
-    "~": "./"
-  },
-  "exclude": ["package.json", "node_modules"],
   "deploy": {
-    "include": ["main.ts"],
-    "exclude": ["package.json"]
+    "include": ["main.ts"]
   }
 }
