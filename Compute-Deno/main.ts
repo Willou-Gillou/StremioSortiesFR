@@ -1,8 +1,7 @@
-// ✅ STREMIO ADDON NATIF DENO v1.0.7 - FIX Routing Deno Deploy
-// Fichier: main.ts (10614 → optimisé)
+// ✅ v1.0.8 - NO LOG STARTUP (Fix Warm/Route Failed)
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
-const ADDON_VERSION = 'v1.0.7';
+const ADDON_VERSION = 'v1.0.8';
 const META_PASTEBIN_ID = 'fxpaHMMj';
 const SERIES_META_ID = 'Jv93Qfyj';
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
@@ -127,5 +126,5 @@ async function handler(req: Request): Promise<Response> {
 
 // ✅ FIX ROUTING: Port auto (Deno Deploy détecte $PORT ou 8000 local)
 const port = parseInt(Deno.env.get('PORT') || '8000');
-console.log(`🚀 SortiesFR Deno v${ADDON_VERSION} sur port ${port}`);
+// console.log(`🚀 SortiesFR Deno v${ADDON_VERSION} sur port ${port}`);
 serve(handler, { port });
