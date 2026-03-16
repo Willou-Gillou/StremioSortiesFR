@@ -1,4 +1,3 @@
-const https = require('https');
 
 // ✅ FONCTION HORODATAGE
 function getTimestamp() {
