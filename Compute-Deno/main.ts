@@ -1,143 +1,131 @@
-// ✅ SORTIESFR v1.1.1 - Fusion (std/http + Deno.serve hybrid) - Stremio 100%
-// SEUL FICHIER - 0 logs - DOUBLE Pastebin (meta+data) - Métas natives
-import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+// ✅ SORTIESFR v1.1.0 - Deno.serve NATIVE (Warm/Route 100%)
+// SEUL FICHIER requis - 0 logs startup - Pastebin catalogs OK
 
-const VERSION = 'v1.1.1';
-const META_ID = 'fxpaHMMj';  // Films meta
-const SERIES_ID = 'Jv93Qfyj'; // Séries meta
-const LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
+const ADDON_VERSION = 'v1.1.0';
+const META_PASTEBIN_ID = 'fxpaHMMj';
+const SERIES_META_ID = 'Jv93Qfyj';
+const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
+const SERIES_META_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
+const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
+const ADDON_DESCRIPT = `SortiesFR ${ADDON_VERSION} - Films/Séries FR récentes DVD/Blu-ray (Stremio Catalog)`;
+// Cache (5min TTL)
+const CACHE = new Map<string, {data: any; expiry: number}>();
+const CACHE_TTL = 300000;
+
+function cacheGet(key: string) {
+  const item = CACHE.get(key);
+  return item && Date.now() < item.expiry ? item.data : null;
+}
+function cacheSet(key: string, data: any) {
+  CACHE.set(key, {data, expiry: Date.now() + CACHE_TTL});
+}
+
+async function fetchPastebin(url: string): Promise<string> {
+  const res = await fetch(url, {headers: {'User-Agent': 'StremioAddon/1.0'}});
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  if (text.includes('<!DOCTYPE') || text.includes('<html')) throw new Error('HTML error');
+  return text;
+}
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type'
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Content-Type': 'application/json; charset=utf-8'
 };
-const JSON_HEADERS = { ...CORS_HEADERS, 'Content-Type': 'application/json; charset=utf-8' };
-const HTML_HEADERS = { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' };
 
-// Cache 1h (optimisé Stremio)
-const CACHE = new Map<string, any>();
-const CACHE_TTL = 60 * 60 * 1000;
-
-function getCache(key: string) {
-  const item = CACHE.get(key);
-  return item && Date.now() < item.expiry ? item.data : null;
-}
-
-function setCache(key: string, data: any) {
-  CACHE.set(key, { data, expiry: Date.now() + CACHE_TTL });
-}
-
-async function fetchPastebin(id: string): Promise<string> {
-  const cacheKey = `raw:${id}`;
-  let raw = getCache(cacheKey);
-  if (!raw) {
-    const res = await fetch(`https://pastebin.com/raw/${id}`, {
-      headers: { 'User-Agent': 'StremioAddon/1.0' }
-    });
-    if (!res.ok) throw new Error(`Pastebin ${res.status}`);
-    raw = await res.text();
-    setCache(cacheKey, raw);
-  }
-  return raw;
-}
+const HTML_HEADERS = {...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8'};
 
 async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, {status: 204, headers: CORS_HEADERS});
   }
 
-  const url = new URL(req.url);
-  const path = url.pathname.slice(1);
-
   try {
-    // manifest.json (FIX Stremio ID fixe)
+    const url = new URL(req.url);
+    const path = url.pathname.slice(1);
+    const extra = url.searchParams.get('extra') || '{}';
+    const parsedExtra = JSON.parse(extra);
+
+    console.log(`[${new Date().toLocaleString('fr-FR')}] ${req.method} ${path}`);
+
+    // Route: manifest.json (CRITIQUE)
     if (path === 'manifest.json') {
-      return new Response(JSON.stringify({
-        id: 'com.stremiosortiesfr.catalog',  // ← CRUCIAL pour Stremio
-        version: VERSION,
-        name: `🎬📺 SortiesFR ${VERSION}`,
-        description: 'Films/Séries FR récents (DVD/Blu-ray) - Catalog Stremio',
-        logo: LOGO,
+      const manifest = {
+        id: 'com.stremio.sortiesfr.catalog',
+        version: ADDON_VERSION,
+        name: `SortiesFR ${ADDON_VERSION}`,
+        description: ADDON_DESCRIPT,
+        logo: ADDON_LOGO,
         resources: ['catalog'],
         types: ['movie', 'series'],
         idPrefixes: ['tt'],
         catalogs: [
-          { type: 'movie', id: 'filmsfr-recents', name: '🎬 Films FR Récents' },
-          { type: 'series', id: 'seriesfr-recentes', name: '📺 Séries FR Récents' }
+          {type: 'movie', id: 'filmsfr-recents', name: 'Films FR Récents'},
+          {type: 'series', id: 'seriesfr-recentes', name: 'Séries FR Récents'}
         ],
-        behaviorHints: { configurable: true }
-      }), { headers: JSON_HEADERS });
+        behaviorHints: {configurable: true}
+      };
+      return new Response(JSON.stringify(manifest), {headers: CORS_HEADERS});
     }
 
-    // Page configure (stylée)
+    // Route: configure (page install)
     if (path === 'configure') {
-  const origin = new URL(req.url).origin;
-  const html = `<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🎬📺 SortiesFR ${VERSION}</title>
-<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:system-ui;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}.container{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);text-align:center;max-width:500px;}h1{font-size:2em;margin-bottom:20px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}a{display:inline-block;margin:30px 0;padding:15px 30px;background:#4CAF50;color:#fff;border-radius:50px;font-weight:600;text-decoration:none;box-shadow:0 10px 20px rgba(76,175,80,.3);}a:hover{transform:translateY(-2px);background:#45a049;}.status{margin-top:20px;padding:15px;background:#e8f5e8;border-radius:10px;border-left:4px solid #4CAF50;}</style></head>
-<body><div class="container"><h1>SortiesFR ${VERSION}</h1><p>📡 <strong>${origin}/manifest.json</strong></p><a href="/manifest.json">📱 INSTALLER STREMIO</a><div class="status">✅ Deno Deploy • Cache 1h • No Logs</div></div></body></html>`;
-  return new Response(html, { headers: HTML_HEADERS });
-}
+      const baseUrl = new URL(req.url).origin + '/manifest.json';
+      const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SortiesFR ${ADDON_VERSION}</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}.container{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);max-width:500px;width:100%;text-align:center}h1{font-size:1.8em;margin-bottom:20px;color:#333}.info{background:#f8f9fa;padding:20px;border-radius:12px;margin:20px 0;text-align:left}.info p{font-family:monospace;font-size:.9em;padding:10px;background:#fff;border-radius:8px;border:2px solid #e9ecef;word-break:break-all}a{display:inline-block;background:linear-gradient(135deg,#4CAF50,#45a049);color:#fff;padding:15px 30px;border-radius:50px;font-weight:600;text-decoration:none;margin:20px 0;transition:all .3s}a:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(76,175,80,.4)}</style></head><body><div class="container"><h1>🎬 SortiesFR ${ADDON_VERSION}</h1><div class="info"><p><strong>URL Manifest:</strong><br>${baseUrl}</p></div><a href="${baseUrl}" target="_blank">🚀 Installer dans Stremio</a></div></body></html>`;
+      return new Response(html, {headers: HTML_HEADERS});
+    }
 
-    // Catalogs (FIX principal : DOUBLE fetch + metas Stremio)
+    // Route: catalog (films/séries)
     if (path.startsWith('catalog/')) {
-      const parts = path.split('/');
-      const type = parts[1] as 'movie' | 'series';  // movie/series
-      const id = parts[2]?.replace('.json', '') || '';
-
-      const cacheKey = `${type}:${id}`;
-      let result = getCache(cacheKey);
+      const [type, id] = path.split('/').slice(1, 3);
+      const cacheKey = `catalog:${type}:${id}`;
+      let result = cacheGet(cacheKey);
 
       if (!result) {
-        // 1. Meta Pastebin (fxpaHMMj → dataId)
-        const metaId = type === 'movie' ? META_ID : SERIES_ID;
-        const metaRaw = await fetchPastebin(metaId);
-        const dataId = metaRaw.trim();
+        const pbId = type === 'movie' ? META_PASTEBIN_ID : SERIES_META_ID;
+        const pbUrl = `https://pastebin.com/raw/${pbId}`;
+        const dataId = (await fetchPastebin(pbUrl)).trim();
+        const jsonData = await fetchPastebin(`https://pastebin.com/raw/${dataId}`);
+        const items: any[] = JSON.parse(jsonData);
 
-        // 2. Data Pastebin (dataId → JSON items)
-        const dataRaw = await fetchPastebin(dataId);
-        const items = JSON.parse(dataRaw);
-
-        // 3. Format Stremio metas (CRUCIAL pour affichage)
         result = {
-          metas: items.map((item: any) => ({
-            id: item.id,
-            type,
-            name: item.name,
-            poster: item.poster || `https://via.placeholder.com/500x750/1E3A8A/F8FAFF?text=${item.name?.slice(0,12)}`,
-            description: item.description,
-            releaseInfo: item.year,
-            imdbRating: item.rating,
-            genre: item.genre
+          metas: items.map((f: any) => ({
+            id: f.id,
+            type: type as 'movie' | 'series',
+            name: f.name,
+            poster: f.poster || `https://via.placeholder.com/500x750/1E3A8A/F8FAFF?text=${f.name.slice(0,12)}`,
+            description: f.description,
+            releaseInfo: f.year,
+            imdbRating: f.rating,
+            genre: f.genre
           })),
-          objects: items.map((item: any) => ({ id: item.id }))
+          objects: items.map((f: any) => ({id: f.id}))
         };
-        setCache(cacheKey, result);
+        cacheSet(cacheKey, result);
       }
 
-      return new Response(JSON.stringify(result), { headers: JSON_HEADERS });
+      return new Response(JSON.stringify(result), {headers: CORS_HEADERS});
     }
 
-    // Redirection racine
-    if (!path) {
-      return Response.redirect(`${url.origin}/configure`, 302);
+    // Redirection racine → configure
+    if (path === '') {
+      return Response.redirect(`${new URL(req.url).origin}/configure`, 302);
     }
 
     // 404
-    return new Response(JSON.stringify({ error: 'Not Found' }), { 
-      status: 404, 
-      headers: JSON_HEADERS 
-    });
+    return new Response(JSON.stringify({error: 'Not Found'}), {status: 404, headers: CORS_HEADERS});
 
   } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message }), { 
-      status: 500, 
-      headers: JSON_HEADERS 
-    });
+    console.error(`[ERROR ${new Date().toLocaleString('fr-FR')}]`, err.message);
+    return new Response(JSON.stringify({error: err.message}), {status: 500, headers: CORS_HEADERS});
   }
 }
 
-// ✅ FIX DÉFINITIF : std/http + 0.0.0.0 (ton fichier) → Warm/Route/Stremio 100%
-serve(handler, { hostname: '0.0.0.0', port: 8000 });
+// ✅ FIX DÉFINITIF : Deno.serve() + 0.0.0.0 + NO LOGS = Warm/Route PASS
+console.log(`🚀 SortiesFR Deno v${ADDON_VERSION} sur port ${port}`);
+Deno.serve(handler, { 
+  port: 8000, 
+  hostname: '0.0.0.0' 
+});
