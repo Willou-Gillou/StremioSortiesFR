@@ -51,24 +51,9 @@ async function handler(req: Request): Promise<Response> {
     console.log(`[${new Date().toLocaleString('fr-FR')}] ${req.method} ${path}`);
 
     // Route: manifest.json (CRITIQUE)
-    if (path === 'manifest.json') {
-      const manifest = {
-        id: 'com.stremio.sortiesfr.catalog',
-        version: ADDON_VERSION,
-        name: `SortiesFR ${ADDON_VERSION}`,
-        description: ADDON_DESCRIPT,
-        logo: ADDON_LOGO,
-        resources: ['catalog'],
-        types: ['movie', 'series'],
-        idPrefixes: ['tt'],
-        catalogs: [
-          {type: 'movie', id: 'filmsfr-recents', name: 'Films FR Récents'},
-          {type: 'series', id: 'seriesfr-recentes', name: 'Séries FR Récents'}
-        ],
-        behaviorHints: {configurable: true}
-      };
-      return new Response(JSON.stringify(manifest), {headers: CORS_HEADERS});
-    }
+if (path === 'manifest.json') {
+  return new Response('{"id":"com.stremio.sortiesfr.catalog","version":"v1.1.0","name":"SortiesFR v1.1.0","description":"SortiesFR v1.1.0 - Films/Séries FR récentes DVD/Blu-ray (Stremio Catalog)","logo":"https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png","resources":["catalog"],"types":["movie","series"],"idPrefixes":["tt"],"catalogs":[{"type":"movie","id":"filmsfr-recents","name":"Films FR Récents"},{"type":"series","id":"seriesfr-recentes","name":"Séries FR Récents"}],"behaviorHints":{"configurable":true}}', {headers: CORS_HEADERS});
+}
 
     // Route: configure (page install)
     if (path === 'configure') {
