@@ -1,0 +1,3 @@
+# Ignorer tout sauf Compute-Koyeb
+*
+!Compute-Koyeb/
