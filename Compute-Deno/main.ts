@@ -72,40 +72,14 @@ async function handler(req: Request): Promise<Response> {
 
     // Page configure (stylée)
     if (path === 'configure') {
-      const origin = url.origin;
-      const html = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎬📺 SortiesFR ${VERSION}</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;color:#333;}
-    .container{background:white;padding:40px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);text-align:center;max-width:500px;}
-    h1{font-size:2em;margin-bottom:20px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
-    .logo{width:80px;height:80px;margin:0 auto 20px;background:#f0f0f0;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2em;}
-    .install{margin:30px 0;padding:15px 30px;background:#4CAF50;color:white;border-radius:50px;font-size:1.1em;font-weight:600;text-decoration:none;display:inline-block;box-shadow:0 10px 20px rgba(76,175,80,.3);}
-    .install:hover{background:#45a049;transform:translateY(-2px);}
-    .status{margin-top:20px;padding:15px;background:#e8f5e8;border-radius:10px;border-left:4px solid #4CAF50;}
-    footer{font-size:.9em;color:#666;margin-top:30px;}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="logo">🎬</div>
-    <h1>SortiesFR ${VERSION}</h1>
-    <p>Addon Stremio natif Deno Deploy</p>
-    <a href="/manifest.json" class="install">📱 INSTALLER DANS STREMIO</a>
-    <div class="status">
-      ✅ Warm/Route OK • Cache 1h • DOUBLE Pastebin • Métas natives
-    </div>
-    <footer>Déployé sur Deno Deploy 2026 | ID: com.stremiosortiesfr.catalog</footer>
-  </div>
-</body>
-</html>`;
-      return new Response(html, { headers: HTML_HEADERS });
-    }
+  const origin = new URL(req.url).origin;
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎬📺 SortiesFR ${VERSION}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box;}body{font-family:system-ui;background:linear-gradient(135deg,#667eea,#764ba2);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}.container{background:#fff;padding:40px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.15);text-align:center;max-width:500px;}h1{font-size:2em;margin-bottom:20px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}a{display:inline-block;margin:30px 0;padding:15px 30px;background:#4CAF50;color:#fff;border-radius:50px;font-weight:600;text-decoration:none;box-shadow:0 10px 20px rgba(76,175,80,.3);}a:hover{transform:translateY(-2px);background:#45a049;}.status{margin-top:20px;padding:15px;background:#e8f5e8;border-radius:10px;border-left:4px solid #4CAF50;}</style></head>
+<body><div class="container"><h1>SortiesFR ${VERSION}</h1><p>📡 <strong>${origin}/manifest.json</strong></p><a href="/manifest.json">📱 INSTALLER STREMIO</a><div class="status">✅ Deno Deploy • Cache 1h • No Logs</div></div></body></html>`;
+  return new Response(html, { headers: HTML_HEADERS });
+}
 
     // Catalogs (FIX principal : DOUBLE fetch + metas Stremio)
     if (path.startsWith('catalog/')) {
@@ -166,4 +140,4 @@ async function handler(req: Request): Promise<Response> {
 }
 
 // ✅ FIX DÉFINITIF : std/http + 0.0.0.0 (ton fichier) → Warm/Route/Stremio 100%
-serve(handler, { hostname: '0.0.0.0' });
+serve(handler, { hostname: '0.0.0.0', port: 8000 });
