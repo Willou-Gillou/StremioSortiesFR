@@ -124,7 +124,7 @@ async function handler(req: Request): Promise<Response> {
 }
 
 // ✅ FIX DÉFINITIF : Deno.serve() + 0.0.0.0 + NO LOGS = Warm/Route PASS
-console.log(`🚀 SortiesFR Deno v${ADDON_VERSION} sur port ${port}`);
+// console.log(`🚀 SortiesFR Deno v${ADDON_VERSION} sur port ${port}`);
 Deno.serve(handler, { 
   port: 8000, 
   hostname: '0.0.0.0' 
