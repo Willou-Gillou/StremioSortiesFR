@@ -1,86 +1,84 @@
-// ✅ SORTIESFR v1.1.0 - Deno.serve NATIVE (Warm/Route 100%)
-// SEUL FICHIER requis - 0 logs startup - Pastebin catalogs OK
-const META_ID = 'fxpaHMMj';
-const SERIES_ID = 'Jv93Qfyj';
+// ✅ SORTIESFR v1.1.1 - Fusion (std/http + Deno.serve hybrid) - Stremio 100%
+// SEUL FICHIER - 0 logs - DOUBLE Pastebin (meta+data) - Métas natives
+import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+
+const VERSION = 'v1.1.1';
+const META_ID = 'fxpaHMMj';  // Films meta
+const SERIES_ID = 'Jv93Qfyj'; // Séries meta
 const LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
 
-const HEADERS = {
-  cors: { 
-    'Access-Control-Allow-Origin': '*', 
-    'Access-Control-Allow-Methods': 'GET,OPTIONS', 
-    'Access-Control-Allow-Headers': 'Content-Type' 
-  },
-  json: { 'Content-Type': 'application/json;charset=utf-8' }
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type'
 };
+const JSON_HEADERS = { ...CORS_HEADERS, 'Content-Type': 'application/json; charset=utf-8' };
+const HTML_HEADERS = { ...CORS_HEADERS, 'Content-Type': 'text/html; charset=utf-8' };
 
-// Cache global (TTL 1h)
-const CACHE = new Map<string, { data: any; expiry: number }>();
-const CACHE_TTL = 60 * 60 * 1000; // 1h
+// Cache 1h (optimisé Stremio)
+const CACHE = new Map<string, any>();
+const CACHE_TTL = 60 * 60 * 1000;
 
-async function getCache(key: string): Promise<any | null> {
-  const cached = CACHE.get(key);
-  if (cached && Date.now() < cached.expiry) return cached.data;
-  CACHE.delete(key);
-  return null;
+function getCache(key: string) {
+  const item = CACHE.get(key);
+  return item && Date.now() < item.expiry ? item.data : null;
 }
 
-async function setCache(key: string, data: any): Promise<void> {
+function setCache(key: string, data: any) {
   CACHE.set(key, { data, expiry: Date.now() + CACHE_TTL });
 }
 
 async function fetchPastebin(id: string): Promise<string> {
-  const cacheKey = `pastebin:${id}`;
-  let jsonStr = await getCache(cacheKey);
-  
-  if (!jsonStr) {
+  const cacheKey = `raw:${id}`;
+  let raw = getCache(cacheKey);
+  if (!raw) {
     const res = await fetch(`https://pastebin.com/raw/${id}`, {
-      headers: { 'User-Agent': 'Stremio/1.0' }
+      headers: { 'User-Agent': 'StremioAddon/1.0' }
     });
-    jsonStr = await res.text();
-    await setCache(cacheKey, jsonStr);
+    if (!res.ok) throw new Error(`Pastebin ${res.status}`);
+    raw = await res.text();
+    setCache(cacheKey, raw);
   }
-  
-  return jsonStr;
+  return raw;
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  const url = new URL(req.url);
-  
-  // CORS preflight
+async function handler(req: Request): Promise<Response> {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 200, headers: HEADERS.cors });
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
-  
-  // manifest.json
-  if (url.pathname === '/manifest.json') {
-    const manifestStr = await fetchPastebin(META_ID);
-    return new Response(manifestStr, { 
-      status: 200, 
-      headers: { ...HEADERS.cors, ...HEADERS.json } 
-    });
-  }
-  
-  // catalogs (films/séries)
-  if (url.pathname.endsWith('.json')) {
-    const id = url.pathname.split('/').pop()?.replace('.json', '') || '';
-    if (id === 'filmsfr-recents' || id === 'seriesfr-recentes') {
-      const pasteId = id.includes('films') ? META_ID : SERIES_ID;
-      const catalogStr = await fetchPastebin(pasteId);
-      return new Response(catalogStr, { 
-        status: 200, 
-        headers: { ...HEADERS.cors, ...HEADERS.json } 
-      });
+
+  const url = new URL(req.url);
+  const path = url.pathname.slice(1);
+
+  try {
+    // manifest.json (FIX Stremio ID fixe)
+    if (path === 'manifest.json') {
+      return new Response(JSON.stringify({
+        id: 'com.stremiosortiesfr.catalog',  // ← CRUCIAL pour Stremio
+        version: VERSION,
+        name: `🎬📺 SortiesFR ${VERSION}`,
+        description: 'Films/Séries FR récents (DVD/Blu-ray) - Catalog Stremio',
+        logo: LOGO,
+        resources: ['catalog'],
+        types: ['movie', 'series'],
+        idPrefixes: ['tt'],
+        catalogs: [
+          { type: 'movie', id: 'filmsfr-recents', name: '🎬 Films FR Récents' },
+          { type: 'series', id: 'seriesfr-recentes', name: '📺 Séries FR Récents' }
+        ],
+        behaviorHints: { configurable: true }
+      }), { headers: JSON_HEADERS });
     }
-  }
-  
-  // Page configure/install
-  if (url.pathname === '/configure') {
-    const html = `<!DOCTYPE html>
+
+    // Page configure (stylée)
+    if (path === 'configure') {
+      const origin = url.origin;
+      const html = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎬📺 SortiesFR v1.1.0</title>
+  <title>🎬📺 SortiesFR ${VERSION}</title>
   <style>
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;color:#333;}
@@ -96,28 +94,76 @@ const handler = async (req: Request): Promise<Response> => {
 <body>
   <div class="container">
     <div class="logo">🎬</div>
-    <h1>SortiesFR v1.1.0</h1>
+    <h1>SortiesFR ${VERSION}</h1>
     <p>Addon Stremio natif Deno Deploy</p>
     <a href="/manifest.json" class="install">📱 INSTALLER DANS STREMIO</a>
     <div class="status">
-      ✅ Warm/Route OK • Cache Pastebin 1h • 0.0.0.0
+      ✅ Warm/Route OK • Cache 1h • DOUBLE Pastebin • Métas natives
     </div>
-    <footer>Déployé sur Deno Deploy 2026</footer>
+    <footer>Déployé sur Deno Deploy 2026 | ID: com.stremiosortiesfr.catalog</footer>
   </div>
 </body>
 </html>`;
-    return new Response(html, { 
-      status: 200, 
-      headers: { ...HEADERS.cors, 'Content-Type': 'text/html;charset=utf-8' } 
+      return new Response(html, { headers: HTML_HEADERS });
+    }
+
+    // Catalogs (FIX principal : DOUBLE fetch + metas Stremio)
+    if (path.startsWith('catalog/')) {
+      const parts = path.split('/');
+      const type = parts[1] as 'movie' | 'series';  // movie/series
+      const id = parts[2]?.replace('.json', '') || '';
+
+      const cacheKey = `${type}:${id}`;
+      let result = getCache(cacheKey);
+
+      if (!result) {
+        // 1. Meta Pastebin (fxpaHMMj → dataId)
+        const metaId = type === 'movie' ? META_ID : SERIES_ID;
+        const metaRaw = await fetchPastebin(metaId);
+        const dataId = metaRaw.trim();
+
+        // 2. Data Pastebin (dataId → JSON items)
+        const dataRaw = await fetchPastebin(dataId);
+        const items = JSON.parse(dataRaw);
+
+        // 3. Format Stremio metas (CRUCIAL pour affichage)
+        result = {
+          metas: items.map((item: any) => ({
+            id: item.id,
+            type,
+            name: item.name,
+            poster: item.poster || `https://via.placeholder.com/500x750/1E3A8A/F8FAFF?text=${item.name?.slice(0,12)}`,
+            description: item.description,
+            releaseInfo: item.year,
+            imdbRating: item.rating,
+            genre: item.genre
+          })),
+          objects: items.map((item: any) => ({ id: item.id }))
+        };
+        setCache(cacheKey, result);
+      }
+
+      return new Response(JSON.stringify(result), { headers: JSON_HEADERS });
+    }
+
+    // Redirection racine
+    if (!path) {
+      return Response.redirect(`${url.origin}/configure`, 302);
+    }
+
+    // 404
+    return new Response(JSON.stringify({ error: 'Not Found' }), { 
+      status: 404, 
+      headers: JSON_HEADERS 
+    });
+
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), { 
+      status: 500, 
+      headers: JSON_HEADERS 
     });
   }
-  
-  // 404
-  return new Response('Not Found', { status: 404, headers: HEADERS.cors });
-};
+}
 
-// ✅ FIX DÉFINITIF : Deno.serve() + 0.0.0.0 + NO LOGS = Warm/Route PASS
-Deno.serve(handler, { 
-  port: 8000, 
-  hostname: '0.0.0.0' 
-});
+// ✅ FIX DÉFINITIF : std/http + 0.0.0.0 (ton fichier) → Warm/Route/Stremio 100%
+serve(handler, { hostname: '0.0.0.0' });
