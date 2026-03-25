@@ -40,11 +40,21 @@ Une requête vers le serveur le réveillera automatiquement au bout de 30s.`;
 console.log(`${getTimestamp()} 🚀 SortiesFR ${ADDON_VERSION} | BASEURL: ${BASEURL} | DÉMARRAGE`);
 
 const server = require('http').createServer(async (req, res) => {
-  // ✅ HORODATAGE + Construction de l'URL complète avec le hostname réel
   const host = req.headers.host || 'localhost:3000';
   const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
   const fullBaseUrl = `${protocol}://${host}`;
-  
+
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  // ✅ HEALTH CHECK — doit être EN PREMIER
+  if (req.url === '/health' || req.url === '/ping') {
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('OK');
+    return;
+  }
+
   console.log(`${getTimestamp()} 📡 ${req.method} ${req.url} from ${host}`);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
