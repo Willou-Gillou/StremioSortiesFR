@@ -17,8 +17,8 @@ function getTimestamp() {
   return `[${date} ${time}]`;
 }
 
-// ✅ VARIABLES GLOBALES v1.0.5
-const ADDON_VERSION = 'v1.0.5';
+// ✅ VARIABLES GLOBALES
+const ADDON_VERSION = 'v1.0.6';
 const META_PASTEBIN_ID = 'fxpaHMMj';        // Meta général (films)
 const SERIES_META_ID = 'Jv93Qfyj';         // Meta général (series)
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
@@ -27,8 +27,7 @@ const SERIES_META_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
 // ✅ URL DYNAMIQUE - détecte automatiquement l'URL réelle du serveur
 const BASEURL = process.env.KOYEB_SERVICE_URL || 
                 process.env.BASE_URL || 
-                process.env.RENDER_EXTERNAL_URL || 
-                'https://yammering-fiann-willorg-17a44322.koyeb.app'; // fallback
+                process.env.RENDER_EXTERNAL_URL
 
 const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
 
@@ -103,7 +102,7 @@ const server = require('http').createServer(async (req, res) => {
 <body>
   <div class="container">
     <img src="${ADDON_LOGO}" alt="Logo" class="logo">
-    <h1>🎬📺 SortiesFR ${ADDON_VERSION}</h1>
+    <h1>🎬📺 SortiesFR</h1>
     <div class="info">
       <h3>📋 Informations</h3>
       <p><strong>Version:</strong> <span class="version">${ADDON_VERSION}</span></p>
@@ -154,8 +153,8 @@ const server = require('http').createServer(async (req, res) => {
     console.log(`${getTimestamp()} 📋 Manifest.json servi`);
     const manifest = {
       "id": "com.stremiosortiesfr.catalog",
-      "version": "1.0.5",
-      "name": "🎬📺 SortiesFR v1.0.5",
+      "version": ADDON_VERSION,
+      "name": "🎬📺 SortiesFR",
       "description": ADDON_DESCRIPTION,
       "logo": ADDON_LOGO,
       "resources": ["catalog"],
