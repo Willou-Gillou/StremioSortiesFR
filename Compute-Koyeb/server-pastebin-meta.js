@@ -97,7 +97,7 @@ const server = require('http').createServer(async (req, res) => {
     *{margin:0;padding:0;box-sizing:border-box;}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
     .container{background:white;padding:40px;border-radius:20px;box-shadow:0 20px 40px rgba(0,0,0,.1);text-align:center;max-width:500px;width:100%;}
-    .logo{width:80px;height:80px;margin:0 auto 20px;border-radius:20px;object-fit:cover;border:4px solid white;box-shadow:0 8px 20px rgba(0,0,0,.2);}
+    .logo{width:160px;height:160px;margin:0 auto 30px;border-radius:30px;object-fit:cover;border:4px solid white;box-shadow:0 8px 20px rgba(0,0,0,.2);display:block;}
     h1{color:#333;margin-bottom:30px;font-size:1.8em;}
     .info{background:#f8f9fa;padding:20px;border-radius:12px;margin-bottom:30px;text-align:left;}
     .info h3{color:#555;margin-bottom:10px;}
