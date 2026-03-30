@@ -1,4 +1,6 @@
 const https = require('https');
+const fs = require('fs');     
+const path = require('path'); 
 
 // ✅ FONCTION HORODATAGE
 function getTimestamp() {
@@ -18,11 +20,13 @@ function getTimestamp() {
 }
 
 // ✅ VARIABLES GLOBALES
-const ADDON_VERSION = 'v1.0.6';
+const ADDON_VERSION = 'v1.0.7';
 const META_PASTEBIN_ID = 'fxpaHMMj';        // Meta général (films)
 const SERIES_META_ID = 'Jv93Qfyj';         // Meta général (series)
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
 const SERIES_META_URL = `https://pastebin.com/raw/${SERIES_META_ID}`;
+
+
 
 // ✅ URL DYNAMIQUE - détecte automatiquement l'URL réelle du serveur
 const BASEURL = process.env.KOYEB_SERVICE_URL || 
@@ -30,6 +34,7 @@ const BASEURL = process.env.KOYEB_SERVICE_URL ||
                 process.env.RENDER_EXTERNAL_URL
 
 const ADDON_LOGO = 'https://kiatoo.com/blog/wp-content/uploads/2018/12/Blu_ray_disc.png';
+const ADDON_LOGO2 = '/logo.jpeg';
 
 const ADDON_DESCRIPTION = `Cet addon est un catalogue présentant les dernières sorties de films ET séries FR récentes (DVD/Bluray). 
 Cet addon ne fournit aucun lien et s'appuie sur la base de données de stremio pour présenter le résumé du film et la bande annonce si disponibles. 
@@ -54,6 +59,21 @@ const server = require('http').createServer(async (req, res) => {
     return;
   }
 
+  // ✅ ROUTE POUR SERVIR LE NOUVEAU LOGO
+  if (req.url === ADDON_LOGO2) {
+    const imagePath = path.join(__dirname, 'logo.jpeg');
+    fs.readFile(imagePath, (err, data) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Image introuvable');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+      res.end(data);
+    });
+    return;
+  }
+  
   console.log(`${getTimestamp()} 📡 ${req.method} ${req.url} from ${host}`);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -101,8 +121,7 @@ const server = require('http').createServer(async (req, res) => {
 </head>
 <body>
   <div class="container">
-    <img src="${ADDON_LOGO}" alt="Logo" class="logo">
-    <h1>🎬📺 SortiesFR</h1>
+    <img src="${ADDON_LOGO2}" alt="Logo" class="logo">
     <div class="info">
       <h3>📋 Informations</h3>
       <p><strong>Version:</strong> <span class="version">${ADDON_VERSION}</span></p>
