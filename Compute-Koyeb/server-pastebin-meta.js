@@ -20,7 +20,7 @@ function getTimestamp() {
 }
 
 // ✅ VARIABLES GLOBALES
-const ADDON_VERSION = 'v1.0.7';
+const ADDON_VERSION = '1.0.7';
 const META_PASTEBIN_ID = 'fxpaHMMj';        // Meta général (films)
 const SERIES_META_ID = 'Jv93Qfyj';         // Meta général (series)
 const META_URL = `https://pastebin.com/raw/${META_PASTEBIN_ID}`;
